@@ -2,7 +2,9 @@ var trumpet = require('trumpet');
 var through = require('through2');
 var fs = require('fs');
 var path = require('path');
-
+/**
+ * 尚未能没有考虑到资源路径前的[空格]
+ */
 module.exports = function (opts) {
     if (!opts) opts = {};
     var basedir = opts.basedir || process.cwd();
@@ -10,6 +12,18 @@ module.exports = function (opts) {
 
     if (!(opts.ignoreScripts || opts['ignore-scripts'])) {
         tr.selectAll('script[src]', function (node) {
+             /**
+             * remote resources[js:src] 不应该被内联
+             */
+            if(node.getAttribute('src').startsWith("http") 
+            ||
+            node.getAttribute('src').startsWith("//") 
+            ){
+                return ;
+            }
+             /**
+              * 补丁结束
+              */
             var file = fix(node.getAttribute('src'));
             node.removeAttribute('src');
             fs.createReadStream(file)
@@ -24,6 +38,7 @@ module.exports = function (opts) {
     }
     if (!(opts.ignoreLinks || opts['ignore-links'])) {
         tr.selectAll('link[href]', function (node) {
+
             var rel = (node.getAttribute('rel') || '').toLowerCase();
             if (rel === 'stylesheet') return;
             inline64(node, 'href');
@@ -33,6 +48,18 @@ module.exports = function (opts) {
         tr.selectAll('link[href]', function (node) {
             var rel = node.getAttribute('rel').toLowerCase();
             if (rel !== 'stylesheet') return;
+            /**
+             * remote resources 不应该被内联
+             */
+            if(node.getAttribute('href').startsWith("http") 
+            ||
+            node.getAttribute('href').startsWith("//") 
+            ){
+                return ;
+            }
+             /**
+              * 补丁结束
+              */
             var file = fix(node.getAttribute('href'));
 
             var w = node.createWriteStream({ outer: true });
@@ -60,6 +87,18 @@ module.exports = function (opts) {
     }
     function inline64 (node, name) {
         var href = node.getAttribute(name);
+           /**
+             * remote resources 不应该被内联
+             */
+            if(href.startsWith("http") 
+            ||
+            href.startsWith("//") 
+            ){
+                return ;
+            }
+             /**
+              * 补丁结束
+              */
         if (/^data:/.test(href)) return;
         var file = fix(href);
         var w = node.createWriteStream({ outer: true });
